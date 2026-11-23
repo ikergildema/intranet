@@ -55,6 +55,33 @@
         </div>
     @endforeach
 
+    @if ($participacion->tipo === \App\Enums\TipoParticipacion::Inscripcion)
+        @php($lanzadera = $datos['lanzadera'] ?? null)
+        <div class="fc-sub">
+            <div class="fc-sub-tit">
+                <strong>{{ __('Lanzadera') }}</strong>
+                @if ($lanzadera)
+                    <span>{{ $lanzadera['nombre'] }}</span>
+                    @if ($lanzadera['lugar'])<span class="fc-tenue">{{ $lanzadera['lugar'] }}</span>@endif
+                    @if ($lanzadera['inicio'])<span class="fc-tenue">{{ $fecha($lanzadera['inicio']) }} – {{ $fecha($lanzadera['fin']) ?? '…' }}</span>@endif
+                    @if ($participacion->responsable)<span class="fc-tenue">· {{ __('Coordina: :nombre', ['nombre' => $participacion->responsable]) }}</span>@endif
+                @else
+                    <span class="fc-tenue">{{ __('Sin lanzadera asignada') }}</span>
+                @endif
+            </div>
+            @if (! empty($datos['charla']) || ! empty($datos['entrevista']))
+                <div class="fc-reuniones">
+                    @if (! empty($datos['charla']))
+                        <span class="fc-reunion"><x-filament::icon icon="heroicon-m-chat-bubble-left-right" style="width:.875rem;height:.875rem;color:var(--gray-400);" />{{ __('Charla: :fecha', ['fecha' => $fecha($datos['charla'], 'd/m/Y H:i')]) }}</span>
+                    @endif
+                    @if (! empty($datos['entrevista']))
+                        <span class="fc-reunion"><x-filament::icon icon="heroicon-m-user-group" style="width:.875rem;height:.875rem;color:var(--gray-400);" />{{ __('Selección: :fecha', ['fecha' => $fecha($datos['entrevista'], 'd/m/Y H:i')]) }}</span>
+                    @endif
+                </div>
+            @endif
+        </div>
+    @endif
+
     @if ($plan)
         <div class="fc-sub">
             <div class="fc-sub-tit">

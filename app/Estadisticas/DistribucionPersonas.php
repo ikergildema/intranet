@@ -54,7 +54,7 @@ class DistribucionPersonas
      * @var array<string, list<string>>
      */
     private const GRUPOS = [
-        self::SEXO => ['Mujeres', 'Hombres'],
+        self::SEXO => ['Mujeres', 'Hombres', 'No binarias'],
         self::ORIGEN => ['Autóctonas', 'Migrantes'],
         self::EDAD => ['Menos de 30', 'De 30 a 45', 'Más de 45'],
     ];
@@ -101,7 +101,7 @@ class DistribucionPersonas
     private function calcular(string $dimension, bool $agrupar): array
     {
         $grupo = match ($dimension) {
-            self::SEXO => "CASE personas.sexo WHEN 'mujer' THEN 'Mujeres' WHEN 'hombre' THEN 'Hombres' ELSE 'No consta' END",
+            self::SEXO => "CASE personas.sexo WHEN 'mujer' THEN 'Mujeres' WHEN 'hombre' THEN 'Hombres' WHEN 'no_binario' THEN 'No binarias' ELSE 'No consta' END",
             self::ORIGEN => "CASE atendidas.migrante WHEN 1 THEN 'Migrantes' WHEN 0 THEN 'Autóctonas' ELSE 'No consta' END",
             self::EDAD => "CASE
                 WHEN personas.fecha_nacimiento IS NULL THEN 'No consta'

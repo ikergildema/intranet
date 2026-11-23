@@ -31,6 +31,7 @@ class Participacion extends Model
         'abian.expediente' => '/recepciones/%d',
         'abian.plan_negocio' => '/planes/%d',
         'abian.jornada' => '/jornada/inscripciones',
+        'anezka.inscripcion' => '/participants/%d',
     ];
 
     /**
@@ -80,9 +81,10 @@ class Participacion extends Model
     public function colorEstado(): string
     {
         return match ($this->estado) {
-            'En curso', 'Inscrito/a' => 'success',
-            'Finalizado sin cerrar', 'No asignado a plan de negocio' => 'warning',
-            'Baja', 'Baja en recepción', 'No valorado' => 'danger',
+            'En curso', 'Inscrito/a', 'Seleccionado' => 'success',
+            'Finalizado sin cerrar', 'No asignado a plan de negocio', 'Reserva', 'Rellamar', 'No contesta' => 'warning',
+            'Baja', 'Baja en recepción', 'No valorado', 'No seleccionado', 'No seleccionable', 'No acude' => 'danger',
+            'Citado a charla', 'Acude a charla', 'Citado a selección', 'Acude a selección' => 'info',
             default => 'gray',
         };
     }

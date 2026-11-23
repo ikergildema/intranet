@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Enums\Programa;
 use App\Sincronizacion\Sincronizador;
 use App\Sincronizacion\SincronizadorAbian;
+use App\Sincronizacion\SincronizadorAnezka;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -21,6 +22,7 @@ class SincronizarProgramas extends Command
      */
     public const SINCRONIZADORES = [
         'abian' => SincronizadorAbian::class,
+        'anezka' => SincronizadorAnezka::class,
     ];
 
     public function handle(): int

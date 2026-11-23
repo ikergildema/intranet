@@ -149,7 +149,7 @@ class DistribucionPersonasChart extends ChartWidget
     {
         $fijos = [
             DistribucionPersonas::NO_CONSTA, ...array_values(DistribucionPersonas::RESTO),
-            'Mujeres', 'Hombres', 'Autóctonas', 'Migrantes', 'Menos de 30', 'De 30 a 45', 'Más de 45',
+            'Mujeres', 'Hombres', 'No binarias', 'Autóctonas', 'Migrantes', 'Menos de 30', 'De 30 a 45', 'Más de 45',
         ];
 
         return in_array($grupo, $fijos, true) ? __($grupo) : $grupo;

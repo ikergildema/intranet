@@ -16,12 +16,16 @@ enum TipoParticipacion: string implements HasLabel
     case PlanNegocio = 'plan_negocio';
     case Jornada = 'jornada';
 
+    /** Anezka: a registration for the employment shuttles, in a convocatoria and maybe a lanzadera. */
+    case Inscripcion = 'inscripcion';
+
     public function getLabel(): string
     {
         return match ($this) {
             self::Expediente => __('Expediente'),
             self::PlanNegocio => __('Plan de negocio'),
             self::Jornada => __('Jornada'),
+            self::Inscripcion => __('Inscripción'),
         };
     }
 }
