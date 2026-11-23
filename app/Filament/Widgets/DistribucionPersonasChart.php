@@ -42,6 +42,8 @@ class DistribucionPersonasChart extends ChartWidget
             DistribucionPersonas::ORIGEN => __('Origen'),
             DistribucionPersonas::EDAD => __('Edad'),
             DistribucionPersonas::POBLACION => __('Población'),
+            DistribucionPersonas::AREA_ORIGEN => __('Migrantes por zona del mundo'),
+            DistribucionPersonas::PAIS_ORIGEN => __('Migrantes por país de origen'),
         };
     }
 
@@ -50,7 +52,9 @@ class DistribucionPersonasChart extends ChartWidget
         return match ($this->dimension) {
             DistribucionPersonas::ORIGEN => __('Abian: desde el 19/09/2025, por país de origen; antes, por DNI extranjero.'),
             DistribucionPersonas::EDAD => __('Edad en su primera participación del periodo.'),
-            DistribucionPersonas::POBLACION => __('Las :n poblaciones con más personas; el resto, agrupadas.', ['n' => DistribucionPersonas::POBLACIONES_VISIBLES]),
+            DistribucionPersonas::POBLACION => __('Las :n poblaciones con más personas; el resto, agrupadas.', ['n' => DistribucionPersonas::GRUPOS_VISIBLES]),
+            DistribucionPersonas::AREA_ORIGEN => __('Las :n zonas con más personas; el resto, agrupadas.', ['n' => DistribucionPersonas::GRUPOS_VISIBLES]),
+            DistribucionPersonas::PAIS_ORIGEN => __('Los :n países con más personas; el resto, agrupados.', ['n' => DistribucionPersonas::GRUPOS_VISIBLES]),
             default => null,
         };
     }
@@ -138,11 +142,16 @@ class DistribucionPersonasChart extends ChartWidget
         return $this->totales ??= $this->distribucion()->por($this->dimension);
     }
 
+    /**
+     * The fixed groups are translated; towns, countries and areas are data and stay as they are.
+     */
     private function etiqueta(string $grupo): string
     {
-        return match ($grupo) {
-            DistribucionPersonas::NO_CONSTA, DistribucionPersonas::OTRAS_POBLACIONES, 'Mujeres', 'Hombres', 'Autóctonas', 'Migrantes', 'Menos de 30', 'De 30 a 45', 'Más de 45' => __($grupo),
-            default => $grupo,
-        };
+        $fijos = [
+            DistribucionPersonas::NO_CONSTA, ...array_values(DistribucionPersonas::RESTO),
+            'Mujeres', 'Hombres', 'Autóctonas', 'Migrantes', 'Menos de 30', 'De 30 a 45', 'Más de 45',
+        ];
+
+        return in_array($grupo, $fijos, true) ? __($grupo) : $grupo;
     }
 }

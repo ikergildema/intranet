@@ -8,6 +8,7 @@ use App\Enums\Sexo;
 use App\Estadisticas\DistribucionPersonas;
 use App\Filament\Pages\Estadisticas;
 use App\Filament\Widgets\DistribucionPersonasChart;
+use App\Filament\Widgets\TotalPersonasAtendidas;
 use App\Models\Participacion;
 use App\Models\Persona;
 use App\Models\User;
@@ -81,6 +82,21 @@ class EstadisticasTest extends TestCase
         );
     }
 
+    public function test_the_migrant_block_counts_only_migrant_people_by_area_and_country(): void
+    {
+        foreach (['Marruecos' => 'Magreb', 'Argelia' => 'Magreb', 'Colombia' => 'América del Sur'] as $pais => $area) {
+            $this->atendida(['pais_origen' => $pais, 'area_origen' => $area], ['2026-02-01'], migrante: [true]);
+        }
+        $this->atendida(['pais_origen' => null, 'area_origen' => null], ['2026-02-01'], migrante: [true]);
+        $this->atendida(['pais_origen' => 'Francia', 'area_origen' => 'Europa Occidental'], ['2026-02-01'], migrante: [false]);
+
+        $migrantes = new DistribucionPersonas(Carbon::parse('2026-01-01'), Carbon::parse('2026-12-31'), soloMigrantes: true);
+
+        $this->assertSame(4, $migrantes->total());
+        $this->assertSame(['Magreb' => 2, 'América del Sur' => 1, 'No consta' => 1], $migrantes->por(DistribucionPersonas::AREA_ORIGEN));
+        $this->assertSame(['Argelia', 'Colombia', 'Marruecos', 'No consta'], $this->ordenarSinNoConsta(array_keys($migrantes->por(DistribucionPersonas::PAIS_ORIGEN))));
+    }
+
     public function test_the_program_filter_keeps_only_its_participations(): void
     {
         $this->atendida([], ['2026-02-01'], programa: Programa::Abian);
@@ -97,6 +113,9 @@ class EstadisticasTest extends TestCase
             ->get(Estadisticas::getUrl())
             ->assertOk()
             ->assertSee('Personas atendidas');
+
+        Livewire::test(TotalPersonasAtendidas::class, ['soloMigrantes' => true, 'pageFilters' => ['desde' => now()->startOfYear()->toDateString(), 'hasta' => now()->toDateString()]])
+            ->assertSee('Personas migrantes atendidas');
 
         Livewire::test(DistribucionPersonasChart::class, ['dimension' => DistribucionPersonas::SEXO, 'pageFilters' => ['desde' => now()->startOfYear()->toDateString(), 'hasta' => now()->toDateString()]])
             ->assertOk()
@@ -126,6 +145,18 @@ class EstadisticasTest extends TestCase
         }
 
         return $persona;
+    }
+
+    /**
+     * @param  list<string>  $grupos
+     * @return list<string>
+     */
+    private function ordenarSinNoConsta(array $grupos): array
+    {
+        $sinNoConsta = array_values(array_diff($grupos, ['No consta']));
+        sort($sinNoConsta);
+
+        return [...$sinNoConsta, ...array_values(array_intersect($grupos, ['No consta']))];
     }
 
     private function distribucion(string $desde, string $hasta, ?Programa $programa = null): DistribucionPersonas

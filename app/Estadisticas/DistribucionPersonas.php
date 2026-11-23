@@ -12,7 +12,8 @@ use Illuminate\Support\Facades\DB;
  *
  * A person is counted once however many participations they had in the period. Their age is
  * the age at their first participation in the period, and they count as migrant when they
- * were migrant in any participation of the period by that program's rule.
+ * were migrant in any participation of the period by that program's rule. It can be limited
+ * to the migrant people of the period.
  */
 class DistribucionPersonas
 {
@@ -24,14 +25,28 @@ class DistribucionPersonas
 
     public const POBLACION = 'poblacion';
 
+    public const AREA_ORIGEN = 'area_origen';
+
+    public const PAIS_ORIGEN = 'pais_origen';
+
     public const NO_CONSTA = 'No consta';
 
-    public const OTRAS_POBLACIONES = 'Otras poblaciones';
+    /**
+     * Groups shown on their own in the open dimensions (towns, countries, areas); the rest are
+     * folded into one slice, so a pie never has more than six.
+     */
+    public const GRUPOS_VISIBLES = 4;
 
     /**
-     * Towns shown on their own; the rest are grouped, so the pie has at most six slices.
+     * Label of the folded slice of each open dimension.
+     *
+     * @var array<string, string>
      */
-    public const POBLACIONES_VISIBLES = 4;
+    public const RESTO = [
+        self::POBLACION => 'Otras poblaciones',
+        self::AREA_ORIGEN => 'Otras zonas',
+        self::PAIS_ORIGEN => 'Otros países',
+    ];
 
     /**
      * Groups of each dimension in display order (the towns are the most frequent ones).
@@ -48,6 +63,7 @@ class DistribucionPersonas
         private Carbon $desde,
         private Carbon $hasta,
         private ?Programa $programa = null,
+        private bool $soloMigrantes = false,
     ) {}
 
     /**
@@ -74,6 +90,8 @@ class DistribucionPersonas
                 WHEN TIMESTAMPDIFF(YEAR, personas.fecha_nacimiento, atendidas.primera) <= 45 THEN 'De 30 a 45'
                 ELSE 'Más de 45' END",
             self::POBLACION => "COALESCE(NULLIF(TRIM(personas.poblacion), ''), 'No consta')",
+            self::AREA_ORIGEN => "COALESCE(personas.area_origen, 'No consta')",
+            self::PAIS_ORIGEN => "COALESCE(personas.pais_origen, 'No consta')",
         };
 
         $totales = DB::query()
@@ -89,8 +107,8 @@ class DistribucionPersonas
         $noConsta = $totales[self::NO_CONSTA] ?? 0;
         unset($totales[self::NO_CONSTA]);
 
-        $ordenados = $dimension === self::POBLACION
-            ? $this->agruparPoblaciones($totales)
+        $ordenados = isset(self::RESTO[$dimension])
+            ? $this->agruparPrincipales($totales, self::RESTO[$dimension])
             : array_filter(array_replace(array_fill_keys(self::GRUPOS[$dimension], 0), $totales));
 
         return $noConsta > 0 ? $ordenados + [self::NO_CONSTA => $noConsta] : $ordenados;
@@ -106,18 +124,19 @@ class DistribucionPersonas
             ->whereBetween('participaciones.fecha_inicio', [$this->desde->toDateString(), $this->hasta->toDateString()])
             ->when($this->programa, fn (Builder $consulta, Programa $programa) => $consulta->where('participaciones.programa', $programa->value))
             ->groupBy('participacion_persona.persona_id')
+            ->when($this->soloMigrantes, fn (Builder $consulta) => $consulta->havingRaw('MAX(participacion_persona.migrante) = 1'))
             ->selectRaw('participacion_persona.persona_id, MIN(participaciones.fecha_inicio) as primera, MAX(participacion_persona.migrante) as migrante');
     }
 
     /**
-     * @param  array<string, int>  $totales  Towns sorted by number of people, most first
+     * @param  array<string, int>  $totales  Groups sorted by number of people, most first
      * @return array<string, int>
      */
-    private function agruparPoblaciones(array $totales): array
+    private function agruparPrincipales(array $totales, string $resto): array
     {
-        $visibles = array_slice($totales, 0, self::POBLACIONES_VISIBLES, preserve_keys: true);
-        $otras = array_sum(array_slice($totales, self::POBLACIONES_VISIBLES));
+        $visibles = array_slice($totales, 0, self::GRUPOS_VISIBLES, preserve_keys: true);
+        $otros = array_sum(array_slice($totales, self::GRUPOS_VISIBLES));
 
-        return $otras > 0 ? $visibles + [self::OTRAS_POBLACIONES => $otras] : $visibles;
+        return $otros > 0 ? $visibles + [$resto => $otros] : $visibles;
     }
 }

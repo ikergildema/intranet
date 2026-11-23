@@ -34,7 +34,7 @@ class SincronizadorAbianTest extends TestCase
 
     private const TABLAS_ORIGEN = [
         ...self::CATALOGOS_ORIGEN,
-        'users', 'empresas', 'personas', 'persona_recepcion', 'recepciones', 'llamadas', 'planes', 'reuniones', 'inscripciones_jornada',
+        'users', 'empresas', 'personas', 'persona_recepcion', 'recepciones', 'llamadas', 'planes', 'reuniones', 'inscripciones_jornada', 'paises', 'areas_mundo',
     ];
 
     protected function setUp(): void
@@ -136,6 +136,8 @@ class SincronizadorAbianTest extends TestCase
     public function test_migrant_status_follows_the_abianv2_rule_by_recepcion_date(): void
     {
         config(['intranet.abian_migrante_por_pais_desde' => '2025-09-19']);
+        $this->origen('areas_mundo')->insert(['id' => 3, 'nombre' => 'América del Sur']);
+        $this->origen('paises')->insert(['id' => 33, 'nombre' => 'Colombia', 'area_mundo_id' => 3]);
         $this->origen('personas')->insert([
             $this->personaOrigen(1, 'X1234567L'),
             ['pais_id' => 33] + $this->personaOrigen(2, '11111111H'),
@@ -153,6 +155,7 @@ class SincronizadorAbianTest extends TestCase
             ->where('personas.documento', $documento)
             ->value('migrante');
 
+        $this->assertSame(['Colombia', 'América del Sur'], array_values(Persona::where('documento', '11111111H')->first(['pais_origen', 'area_origen'])->only(['pais_origen', 'area_origen'])));
         $this->assertSame(1, $migrante(10, 'X1234567L'), 'Before the cut-off, a foreign document counts.');
         $this->assertSame(0, $migrante(10, '11111111H'), 'Before the cut-off, the country of origin does not count.');
         $this->assertSame(1, $migrante(11, '11111111H'), 'From the cut-off, the country of origin counts.');
@@ -250,6 +253,17 @@ class SincronizadorAbianTest extends TestCase
                 $table->string('nombre');
             });
         }
+
+        $esquema->create('areas_mundo', function (Blueprint $table) {
+            $table->id();
+            $table->string('nombre');
+        });
+
+        $esquema->create('paises', function (Blueprint $table) {
+            $table->id();
+            $table->string('nombre');
+            $table->unsignedBigInteger('area_mundo_id')->nullable();
+        });
 
         $esquema->create('users', function (Blueprint $table) {
             $table->id();

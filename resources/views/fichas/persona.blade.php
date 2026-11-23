@@ -16,6 +16,7 @@
                 @if ($persona->telefono)<span class="fc-dato"><x-filament::icon icon="heroicon-m-phone" /><a href="tel:{{ preg_replace('/\s/', '', $persona->telefono) }}">{{ $persona->telefono }}</a></span>@endif
                 @if ($persona->email)<span class="fc-dato"><x-filament::icon icon="heroicon-m-envelope" /><a href="mailto:{{ $persona->email }}">{{ $persona->email }}</a></span>@endif
                 @if ($persona->poblacion)<span class="fc-dato"><x-filament::icon icon="heroicon-m-map-pin" />{{ $persona->poblacion }}</span>@endif
+                @if ($persona->pais_origen)<span class="fc-dato" title="{{ __('País de origen') }}"><x-filament::icon icon="heroicon-m-globe-europe-africa" />{{ $persona->pais_origen }}@if ($persona->area_origen) · {{ $persona->area_origen }}@endif</span>@endif
                 @if ($persona->fecha_nacimiento)<span class="fc-dato"><x-filament::icon icon="heroicon-m-cake" />{{ $persona->fecha_nacimiento->format('d/m/Y') }} · {{ __(':n años', ['n' => $persona->fecha_nacimiento->age]) }}</span>@endif
                 @if ($persona->sexo)<span class="fc-dato"><x-filament::icon icon="heroicon-m-user" />{{ $persona->sexo->getLabel() }}</span>@endif
             </div>

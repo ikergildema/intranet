@@ -68,6 +68,12 @@ class SincronizadorAbian extends Sincronizador
         foreach ($tablas as $tabla => $columna) {
             $this->catalogos[$tabla] = $this->origen()->table($tabla)->pluck($columna, 'id')->all();
         }
+
+        $this->catalogos['paises'] = $this->origen()->table('paises')->pluck('nombre', 'id')->all();
+        $this->catalogos['area_de_pais'] = $this->origen()->table('paises')
+            ->join('areas_mundo', 'areas_mundo.id', '=', 'paises.area_mundo_id')
+            ->pluck('areas_mundo.nombre', 'paises.id')
+            ->all();
     }
 
     private function catalogo(string $tabla, int|string|null $id): ?string
@@ -108,6 +114,8 @@ class SincronizadorAbian extends Sincronizador
                     'telefono' => $persona->telefono,
                     'email' => $persona->email,
                     'poblacion' => $this->catalogo('poblaciones', $persona->poblacion_id),
+                    'pais_origen' => $this->catalogo('paises', $persona->pais_id),
+                    'area_origen' => $this->catalogo('area_de_pais', $persona->pais_id),
                 ], $persona->updated_at);
             }
         });

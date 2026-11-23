@@ -63,6 +63,11 @@ class Estadisticas extends Dashboard
                 fn (string $dimension) => DistribucionPersonasChart::make(['dimension' => $dimension]),
                 [DistribucionPersonas::SEXO, DistribucionPersonas::ORIGEN, DistribucionPersonas::EDAD, DistribucionPersonas::POBLACION],
             ),
+            TotalPersonasAtendidas::make(['soloMigrantes' => true]),
+            ...array_map(
+                fn (string $dimension) => DistribucionPersonasChart::make(['dimension' => $dimension, 'soloMigrantes' => true]),
+                [DistribucionPersonas::AREA_ORIGEN, DistribucionPersonas::PAIS_ORIGEN],
+            ),
         ];
     }
 }

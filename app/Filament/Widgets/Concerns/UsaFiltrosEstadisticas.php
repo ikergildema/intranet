@@ -14,6 +14,11 @@ trait UsaFiltrosEstadisticas
 {
     use InteractsWithPageFilters;
 
+    /**
+     * Limit the figures to the migrant people of the period.
+     */
+    public bool $soloMigrantes = false;
+
     protected function distribucion(): DistribucionPersonas
     {
         $filtros = $this->pageFilters ?? [];
@@ -22,6 +27,7 @@ trait UsaFiltrosEstadisticas
             Carbon::parse($filtros['desde'] ?? now()->startOfYear()),
             Carbon::parse($filtros['hasta'] ?? now()),
             Programa::tryFrom((string) ($filtros['programa'] ?? '')),
+            $this->soloMigrantes,
         );
     }
 }

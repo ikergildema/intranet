@@ -57,7 +57,7 @@ class FichasTest extends TestCase
 
     public function test_the_persona_ficha_shows_each_expediente_like_the_abianv2_quick_search(): void
     {
-        $persona = Persona::factory()->create(['nombre' => 'Ane', 'apellido1' => 'Etxeberria', 'apellido2' => null]);
+        $persona = Persona::factory()->create(['nombre' => 'Ane', 'apellido1' => 'Etxeberria', 'apellido2' => null, 'pais_origen' => 'Colombia', 'area_origen' => 'América del Sur']);
         $empresa = Empresa::factory()->create(['nombre' => 'Txokoa SL', 'estado' => 'Funcionando']);
         $expediente = Participacion::factory()->create([
             'origen_id' => 10,
@@ -81,7 +81,7 @@ class FichasTest extends TestCase
 
         $this->get(PersonaResource::getUrl('view', ['record' => $persona]))
             ->assertOk()
-            ->assertSeeInOrder(['Ane Etxeberria', '1 participación', 'AB-2026-00000010', 'Atendida por Itziar', 'En curso', 'Llamada del 20/02/2026 09:30', 'Plan de negocio', 'Mikel', '01/04/2026', 'Txokoa SL'])
+            ->assertSeeInOrder(['Ane Etxeberria', 'Colombia', 'América del Sur', '1 participación', 'AB-2026-00000010', 'Atendida por Itziar', 'En curso', 'Llamada del 20/02/2026 09:30', 'Plan de negocio', 'Mikel', '01/04/2026', 'Txokoa SL'])
             ->assertSee('http://abianv2.dema.local/recepciones/10')
             ->assertSee(EmpresaResource::getUrl('view', ['record' => $empresa]))
             ->assertDontSee($ajena->referencia);
