@@ -76,19 +76,20 @@ class EstadisticasTest extends TestCase
             }
         }
         $this->atendida(['poblacion' => null], ['2026-02-01']);
+        $this->atendida(['poblacion' => 'No procede'], ['2026-02-01']);
 
         $this->assertSame(
-            ['Bilbao' => 5, 'Barakaldo' => 4, 'Getxo' => 3, 'Durango' => 2, 'Otras poblaciones' => 2, 'No consta' => 1],
+            ['Bilbao' => 5, 'Barakaldo' => 4, 'Getxo' => 3, 'Durango' => 2, 'Otras poblaciones' => 2, 'No consta' => 2],
             $this->distribucion('2026-01-01', '2026-12-31')->por(DistribucionPersonas::POBLACION),
         );
         $this->assertSame(
-            ['Bilbao' => 5, 'Barakaldo' => 4, 'Getxo' => 3, 'Durango' => 2, 'Ermua' => 1, 'Gernika' => 1, 'No consta' => 1],
+            ['Bilbao' => 5, 'Barakaldo' => 4, 'Getxo' => 3, 'Durango' => 2, 'Ermua' => 1, 'Gernika' => 1, 'No consta' => 2],
             $this->distribucion('2026-01-01', '2026-12-31')->porCompleto(DistribucionPersonas::POBLACION),
             'The full table keeps every town.',
         );
 
         Livewire::test(TablaDistribucionPersonas::class, ['dimension' => DistribucionPersonas::POBLACION, 'pageFilters' => ['desde' => '2026-01-01', 'hasta' => '2026-12-31']])
-            ->assertSeeInOrder(['Bilbao', '5', '29,4 %', 'Ermua', 'Gernika', 'No consta']);
+            ->assertSeeInOrder(['Bilbao', '5', '27,8 %', 'Ermua', 'Gernika', 'No consta']);
     }
 
     public function test_the_migrant_block_counts_only_migrant_people_by_area_and_country(): void

@@ -108,7 +108,7 @@ class DistribucionPersonas
                 WHEN TIMESTAMPDIFF(YEAR, personas.fecha_nacimiento, atendidas.primera) < 30 THEN 'Menos de 30'
                 WHEN TIMESTAMPDIFF(YEAR, personas.fecha_nacimiento, atendidas.primera) <= 45 THEN 'De 30 a 45'
                 ELSE 'Más de 45' END",
-            self::POBLACION => "COALESCE(NULLIF(TRIM(personas.poblacion), ''), 'No consta')",
+            self::POBLACION => "CASE WHEN personas.poblacion IS NULL OR TRIM(personas.poblacion) IN ('', 'No procede') THEN 'No consta' ELSE TRIM(personas.poblacion) END",
             self::AREA_ORIGEN => "COALESCE(personas.area_origen, 'No consta')",
             self::PAIS_ORIGEN => "COALESCE(personas.pais_origen, 'No consta')",
         };
