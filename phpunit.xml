@@ -23,9 +23,16 @@
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
-        <env name="DB_CONNECTION" value="sqlite"/>
-        <env name="DB_DATABASE" value=":memory:"/>
+        <env name="DB_CONNECTION" value="mysql"/>
+        <env name="DB_DATABASE" value="intranet_testing"/>
+        <!-- Source applications are never read in tests: tests create their own source tables. -->
+        <env name="ANEZKA_DB_DATABASE" value="intranet_testing"/>
+        <env name="ENPRESARI_DB_DATABASE" value="intranet_testing"/>
+        <env name="ABIAN_DB_DATABASE" value="intranet_testing"/>
         <env name="DB_URL" value=""/>
+        <env name="LOG_CHANNEL" value="stderr"/>
+        <!-- Compiled views of their own: the ones in storage/framework/views belong to www-data. -->
+        <env name="VIEW_COMPILED_PATH" value="storage/framework/testing/views"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
