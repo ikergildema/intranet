@@ -18,6 +18,11 @@ class TotalPersonasAtendidas extends StatsOverviewWidget
     protected int|string|array $columnSpan = 'full';
 
     /**
+     * No polling: the figures only change with the sync, every four hours.
+     */
+    protected ?string $pollingInterval = null;
+
+    /**
      * @return array<Stat>
      */
     protected function getStats(): array

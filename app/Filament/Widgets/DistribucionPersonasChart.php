@@ -30,6 +30,11 @@ class DistribucionPersonasChart extends ChartWidget
 
     protected ?string $maxHeight = '260px';
 
+    /**
+     * No polling: the figures only change with the sync, every four hours.
+     */
+    protected ?string $pollingInterval = null;
+
     public string $dimension = DistribucionPersonas::SEXO;
 
     /** @var array<string, int>|null */
@@ -123,7 +128,6 @@ class DistribucionPersonasChart extends ChartWidget
     {
         return RawJs::make(<<<'JS'
             {
-                animation: false,
                 elements: { arc: { borderColor: document.documentElement.classList.contains('dark') ? '#18181b' : '#ffffff' } },
                 plugins: {
                     legend: { position: 'right', labels: { boxWidth: 12, boxHeight: 12, padding: 10 } },
