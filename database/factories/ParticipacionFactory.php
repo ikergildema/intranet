@@ -19,7 +19,7 @@ class ParticipacionFactory extends Factory
     {
         return [
             'programa' => Programa::Abian,
-            'tipo' => TipoParticipacion::Recepcion,
+            'tipo' => TipoParticipacion::Expediente,
             'origen_id' => fake()->unique()->numberBetween(1, 1_000_000),
             'titulo' => fake()->sentence(3),
             'fecha_inicio' => fake()->dateTimeBetween('-3 years'),

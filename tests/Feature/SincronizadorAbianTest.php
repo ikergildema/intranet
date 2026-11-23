@@ -29,12 +29,12 @@ class SincronizadorAbianTest extends TestCase
 
     private const CATALOGOS_ORIGEN = [
         'poblaciones', 'actividades', 'formas_juridicas', 'estados_empresa', 'tipos_plan', 'motivos_baja',
-        'situaciones_laborales', 'canales_conocimiento',
+        'situaciones_laborales', 'canales_conocimiento', 'tipos_reunion',
     ];
 
     private const TABLAS_ORIGEN = [
         ...self::CATALOGOS_ORIGEN,
-        'users', 'empresas', 'personas', 'persona_recepcion', 'recepciones', 'planes', 'reuniones', 'inscripciones_jornada',
+        'users', 'empresas', 'personas', 'persona_recepcion', 'recepciones', 'llamadas', 'planes', 'reuniones', 'inscripciones_jornada',
     ];
 
     protected function setUp(): void
@@ -80,24 +80,57 @@ class SincronizadorAbianTest extends TestCase
         $this->assertSame(2, Persona::whereNull('documento')->count());
     }
 
-    public function test_a_plan_is_linked_to_its_promoters_through_the_reception_and_to_its_company(): void
+    public function test_an_expediente_is_one_participation_with_its_call_plan_meetings_and_company(): void
     {
         $this->origen('empresas')->insert(['id' => 5, 'cif' => 'b95123456', 'nombre' => 'Txokoa SL', 'updated_at' => '2026-01-01 00:00:00']);
         $this->origen('personas')->insert([
             $this->personaOrigen(1, '11111111H'),
             $this->personaOrigen(2, '22222222J'),
         ]);
-        $this->origen('planes')->insert(['id' => 7, 'nombre' => 'Txokoa', 'baja' => 2, 'cerrado' => false, 'finalizado' => false, 'empresa_id' => 5]);
+        $this->origen('users')->insert(['id' => 3, 'name' => 'Itziar']);
+        $this->origen('tipos_reunion')->insert(['id' => 1, 'nombre' => 'Abian']);
+        $this->origen('planes')->insert(['id' => 7, 'nombre' => 'Txokoa', 'baja' => 2, 'cerrado' => false, 'finalizado' => false, 'empresa_id' => 5, 'consultor_id' => 3]);
+        $this->origen('reuniones')->insert(['plan_id' => 7, 'tipo_reunion_id' => 1, 'fecha' => '2026-04-01', 'celebrada' => true, 'no_presentado' => false]);
         $this->recepcionOrigen(10, [1, 2], planId: 7);
+        $this->origen('llamadas')->insert(['recepcion_id' => 10, 'fecha' => '2026-02-20 09:30:00', 'telefonica' => false]);
 
         $this->sincronizar();
 
-        $plan = Participacion::where('tipo', TipoParticipacion::PlanNegocio)->where('origen_id', 7)->sole();
-        $this->assertSame('Baja', $plan->estado);
-        $this->assertSame('AB-2026-00000010', $plan->referencia);
-        $this->assertSame(Empresa::where('cif', 'B95123456')->value('id'), $plan->empresa_id);
-        $this->assertEqualsCanonicalizing(['11111111H', '22222222J'], $plan->personas->pluck('documento')->all());
-        $this->assertSame('http://abianv2.dema.local/planes/7', $plan->urlOrigen());
+        $expediente = Participacion::sole();
+        $this->assertSame(TipoParticipacion::Expediente, $expediente->tipo);
+        $this->assertSame('Baja', $expediente->estado);
+        $this->assertSame('AB-2026-00000010', $expediente->referencia);
+        $this->assertSame(Empresa::where('cif', 'B95123456')->value('id'), $expediente->empresa_id);
+        $this->assertEqualsCanonicalizing(['11111111H', '22222222J'], $expediente->personas->pluck('documento')->all());
+        $this->assertSame('Itziar', $expediente->datos['plan']['consultor']);
+        $this->assertEquals([['fecha' => '2026-04-01', 'tipo' => 'Abian', 'celebrada' => true, 'no_presentado' => false]], $expediente->datos['plan']['reuniones']);
+        $this->assertCount(1, $expediente->datos['llamadas']);
+        $this->assertSame('http://abianv2.dema.local/recepciones/10', $expediente->urlOrigen());
+    }
+
+    public function test_two_recepciones_count_as_two_participations_even_with_the_same_plan(): void
+    {
+        $this->origen('personas')->insert($this->personaOrigen(1, '11111111H'));
+        $this->origen('planes')->insert(['id' => 7, 'nombre' => 'Txokoa']);
+        $this->recepcionOrigen(10, [1], planId: 7);
+        $this->recepcionOrigen(11, [1], planId: 7);
+
+        $this->sincronizar();
+
+        $this->assertSame(2, Persona::sole()->participaciones()->count());
+        $this->assertSame(0, Participacion::where('tipo', TipoParticipacion::PlanNegocio)->count());
+    }
+
+    public function test_an_old_plan_without_recepcion_is_a_participation_of_its_own(): void
+    {
+        $this->origen('planes')->insert(['id' => 7, 'nombre' => 'Antiguo', 'cerrado' => true, 'fecha_final' => '2015-06-30']);
+
+        $this->sincronizar();
+
+        $plan = Participacion::sole();
+        $this->assertSame(TipoParticipacion::PlanNegocio, $plan->tipo);
+        $this->assertSame('Cerrado', $plan->estado);
+        $this->assertSame('2015-06-30', $plan->fecha_fin->toDateString());
     }
 
     public function test_running_again_is_idempotent_and_removes_what_disappeared_in_the_source(): void
@@ -165,7 +198,7 @@ class SincronizadorAbianTest extends TestCase
     {
         $this->origen('recepciones')->insert([
             'id' => $id,
-            'nexpediente' => sprintf('AB-2026-%08d', $id),
+            'ano' => 2026,
             'nombre' => 'Idea '.$id,
             'fecha_solicitud' => '2026-03-01',
             'resultado' => 2,
@@ -229,15 +262,17 @@ class SincronizadorAbianTest extends TestCase
 
         $esquema->create('persona_recepcion', function (Blueprint $table) {
             $table->id();
+            $table->unsignedInteger('orden')->default(1);
             $table->unsignedBigInteger('recepcion_id');
             $table->unsignedBigInteger('persona_id');
         });
 
         $esquema->create('recepciones', function (Blueprint $table) {
             $table->id();
-            $table->string('nexpediente')->nullable();
+            $table->unsignedSmallInteger('ano')->nullable();
             $table->string('nombre')->nullable();
             $table->date('fecha_solicitud')->nullable();
+            $table->time('hora_solicitud')->nullable();
             $table->unsignedSmallInteger('resultado')->default(0);
             $table->unsignedBigInteger('consultor_id')->nullable();
             $table->unsignedBigInteger('actividad_id')->nullable();
@@ -263,10 +298,21 @@ class SincronizadorAbianTest extends TestCase
             $table->unsignedBigInteger('empresa_id')->nullable();
         });
 
+        $esquema->create('llamadas', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('recepcion_id')->nullable();
+            $table->dateTime('fecha')->nullable();
+            $table->boolean('telefonica')->default(false);
+            $table->timestamp('deleted_at')->nullable();
+        });
+
         $esquema->create('reuniones', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('plan_id');
+            $table->unsignedBigInteger('tipo_reunion_id')->nullable();
+            $table->date('fecha')->nullable();
             $table->boolean('celebrada')->default(false);
+            $table->boolean('no_presentado')->default(false);
             $table->timestamp('deleted_at')->nullable();
         });
 

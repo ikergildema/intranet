@@ -6,13 +6,12 @@ use App\Enums\Programa;
 use App\Enums\Sexo;
 use App\Filament\Resources\Personas\Pages\ListPersonas;
 use App\Filament\Resources\Personas\Pages\ViewPersona;
-use App\Filament\Resources\Personas\RelationManagers\ParticipacionesRelationManager;
+use App\Filament\Support\TraduceEtiquetas;
 use App\Models\Persona;
 use App\Sincronizacion\Documento;
 use BackedEnum;
-use Filament\Infolists\Components\TextEntry;
+use Filament\Infolists\Components\ViewEntry;
 use Filament\Resources\Resource;
-use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
@@ -26,6 +25,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class PersonaResource extends Resource
 {
+    use TraduceEtiquetas;
+
     protected static ?string $model = Persona::class;
 
     protected static ?string $modelLabel = 'persona';
@@ -63,7 +64,7 @@ class PersonaResource extends Resource
      */
     public static function getGlobalSearchResultDetails(Model $record): array
     {
-        return array_filter(['DNI' => $record->documento, 'Teléfono' => $record->telefono]);
+        return array_filter([__('DNI / NIE') => $record->documento, __('Teléfono') => $record->telefono]);
     }
 
     public static function getGloballySearchableAttributes(): array
@@ -99,50 +100,32 @@ class PersonaResource extends Resource
         return $table
             ->modifyQueryUsing(fn (Builder $query) => $query->withCount('participaciones')->with('participaciones:id,programa'))
             ->defaultSort('apellido1')
-            ->searchPlaceholder('Nombre, apellidos, DNI, teléfono o email')
+            ->searchPlaceholder(__('Nombre, apellidos, DNI, teléfono o email'))
             ->columns([
-                TextColumn::make('nombre_completo')->label('Nombre')
+                TextColumn::make('nombre_completo')->label(__('Nombre'))
                     ->state(fn (Persona $record) => $record->nombreCompleto())
                     ->searchable(query: fn (Builder $query, string $search) => static::buscar($query, $search))
                     ->sortable(['apellido1', 'apellido2', 'nombre']),
-                TextColumn::make('documento')->label('DNI / NIE')->placeholder('—'),
-                TextColumn::make('telefono')->label('Teléfono')->toggleable(),
-                TextColumn::make('email')->toggleable(),
-                TextColumn::make('poblacion')->label('Población')->toggleable(),
-                TextColumn::make('programas')->label('Programas')->badge()
+                TextColumn::make('documento')->label(__('DNI / NIE'))->placeholder('—'),
+                TextColumn::make('telefono')->label(__('Teléfono'))->toggleable(),
+                TextColumn::make('email')->label(__('Email'))->toggleable(),
+                TextColumn::make('poblacion')->label(__('Población'))->toggleable(),
+                TextColumn::make('programas')->label(__('Programas'))->badge()
                     ->state(fn (Persona $record) => $record->participaciones->pluck('programa')->unique()->map(fn (Programa $programa) => $programa->getLabel())->values()->all()),
-                TextColumn::make('participaciones_count')->label('Participaciones')->sortable()->alignEnd(),
+                TextColumn::make('participaciones_count')->label(__('Participaciones'))->sortable()->alignEnd(),
             ])
             ->filters([
-                SelectFilter::make('programa')->options(Programa::class)
+                SelectFilter::make('programa')->label(__('Programa'))->options(Programa::class)
                     ->query(fn (Builder $query, array $data) => $query->when($data['value'], fn (Builder $query, string $programa) => $query->whereHas('participaciones', fn (Builder $query) => $query->where('programa', $programa)))),
-                SelectFilter::make('sexo')->options(Sexo::class),
+                SelectFilter::make('sexo')->label(__('Sexo'))->options(Sexo::class),
             ]);
     }
 
     public static function infolist(Schema $schema): Schema
     {
         return $schema->components([
-            Section::make('Datos personales')->columns(4)->columnSpanFull()->schema([
-                TextEntry::make('nombre')->placeholder('—'),
-                TextEntry::make('apellido1')->label('Primer apellido')->placeholder('—'),
-                TextEntry::make('apellido2')->label('Segundo apellido')->placeholder('—'),
-                TextEntry::make('documento')->label('DNI / NIE')->placeholder('Sin documento fiable')
-                    ->helperText(fn (Persona $record) => $record->documento_original !== null && $record->documento_original !== $record->documento ? 'Tal como se escribió: '.$record->documento_original : null),
-                TextEntry::make('sexo')->placeholder('—'),
-                TextEntry::make('fecha_nacimiento')->label('Fecha de nacimiento')->date('d/m/Y')->placeholder('—')
-                    ->helperText(fn (Persona $record) => $record->fecha_nacimiento ? $record->fecha_nacimiento->age.' años' : null),
-                TextEntry::make('telefono')->label('Teléfono')->placeholder('—'),
-                TextEntry::make('email')->placeholder('—'),
-                TextEntry::make('poblacion')->label('Población')->placeholder('—'),
-                TextEntry::make('datos_actualizados_at')->label('Datos actualizados en origen')->dateTime('d/m/Y H:i')->placeholder('—'),
-            ]),
+            ViewEntry::make('ficha')->view('fichas.persona')->hiddenLabel()->columnSpanFull(),
         ]);
-    }
-
-    public static function getRelations(): array
-    {
-        return [ParticipacionesRelationManager::class];
     }
 
     public static function getPages(): array

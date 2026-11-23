@@ -28,7 +28,7 @@ class Participacion extends Model
      * @var array<string, string>
      */
     private const RUTAS_ORIGEN = [
-        'abian.recepcion' => '/recepciones/%d',
+        'abian.expediente' => '/recepciones/%d',
         'abian.plan_negocio' => '/planes/%d',
         'abian.jornada' => '/jornada/inscripciones',
     ];
@@ -72,5 +72,32 @@ class Participacion extends Model
         $ruta = self::RUTAS_ORIGEN[$this->programa->value.'.'.$this->tipo->value] ?? null;
 
         return $ruta === null ? null : $this->programa->url().sprintf($ruta, $this->origen_id);
+    }
+
+    /**
+     * Badge color of the status, with the same meaning as in abianv2.
+     */
+    public function colorEstado(): string
+    {
+        return match ($this->estado) {
+            'En curso', 'Inscrito/a' => 'success',
+            'Finalizado sin cerrar', 'No asignado a plan de negocio' => 'warning',
+            'Baja', 'Baja en recepción', 'No valorado' => 'danger',
+            default => 'gray',
+        };
+    }
+
+    /**
+     * Badge color of the result of an Abian recepción.
+     */
+    public function colorResultado(): string
+    {
+        return match ($this->datos['resultado'] ?? null) {
+            0 => 'warning',
+            1, 666 => 'danger',
+            2, 4 => 'success',
+            3 => 'info',
+            default => 'gray',
+        };
     }
 }

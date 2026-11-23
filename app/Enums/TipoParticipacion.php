@@ -9,14 +9,17 @@ use Filament\Support\Contracts\HasLabel;
  */
 enum TipoParticipacion: string implements HasLabel
 {
-    case Recepcion = 'recepcion';
+    /** Abian: a recepción with its call, business plan, meetings and company. */
+    case Expediente = 'expediente';
+
+    /** Abian: an old business plan without recepción. */
     case PlanNegocio = 'plan_negocio';
     case Jornada = 'jornada';
 
     public function getLabel(): string
     {
         return match ($this) {
-            self::Recepcion => __('Recepción'),
+            self::Expediente => __('Expediente'),
             self::PlanNegocio => __('Plan de negocio'),
             self::Jornada => __('Jornada'),
         };

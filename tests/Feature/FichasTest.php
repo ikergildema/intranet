@@ -7,12 +7,8 @@ use App\Enums\Rol;
 use App\Enums\TipoParticipacion;
 use App\Filament\Resources\Empresas\EmpresaResource;
 use App\Filament\Resources\Empresas\Pages\ListEmpresas;
-use App\Filament\Resources\Empresas\Pages\ViewEmpresa;
-use App\Filament\Resources\Empresas\RelationManagers\ParticipacionesRelationManager as ParticipacionesEmpresa;
 use App\Filament\Resources\Personas\Pages\ListPersonas;
-use App\Filament\Resources\Personas\Pages\ViewPersona;
 use App\Filament\Resources\Personas\PersonaResource;
-use App\Filament\Resources\Personas\RelationManagers\ParticipacionesRelationManager as ParticipacionesPersona;
 use App\Models\Empresa;
 use App\Models\Participacion;
 use App\Models\Persona;
@@ -59,20 +55,36 @@ class FichasTest extends TestCase
             ->assertCanNotSeeTableRecords([$otra]);
     }
 
-    public function test_the_persona_ficha_lists_every_participation_with_a_link_to_the_original_record(): void
+    public function test_the_persona_ficha_shows_each_expediente_like_the_abianv2_quick_search(): void
     {
-        $persona = Persona::factory()->create();
-        $recepcion = Participacion::factory()->create(['origen_id' => 10]);
-        $plan = Participacion::factory()->create(['tipo' => TipoParticipacion::PlanNegocio, 'origen_id' => 7, 'empresa_id' => Empresa::factory()->create()->id]);
-        $ajena = Participacion::factory()->create();
-        $persona->participaciones()->attach([$recepcion->id, $plan->id]);
+        $persona = Persona::factory()->create(['nombre' => 'Ane', 'apellido1' => 'Etxeberria', 'apellido2' => null]);
+        $empresa = Empresa::factory()->create(['nombre' => 'Txokoa SL', 'estado' => 'Funcionando']);
+        $expediente = Participacion::factory()->create([
+            'origen_id' => 10,
+            'referencia' => 'AB-2026-00000010',
+            'estado' => 'En curso',
+            'responsable' => 'Itziar',
+            'empresa_id' => $empresa->id,
+            'datos' => [
+                'resultado' => 2,
+                'resultado_etiqueta' => 'Abian',
+                'llamadas' => [['fecha' => '2026-02-20 09:30:00', 'telefonica' => false]],
+                'plan' => [
+                    'id' => 7, 'nombre' => 'Txokoa', 'consultor' => 'Mikel', 'tipo_plan' => 'Sortu',
+                    'fecha_asignacion' => '2026-03-02', 'fecha_final' => null, 'cerrado' => false, 'baja' => false, 'motivo_baja' => null,
+                    'reuniones' => [['fecha' => '2026-04-01', 'tipo' => 'Abian', 'celebrada' => true, 'no_presentado' => false]],
+                ],
+            ],
+        ]);
+        $ajena = Participacion::factory()->create(['referencia' => 'AB-2026-00000099']);
+        $persona->participaciones()->attach($expediente);
 
-        $this->get(PersonaResource::getUrl('view', ['record' => $persona]))->assertOk();
-
-        Livewire::test(ParticipacionesPersona::class, ['ownerRecord' => $persona, 'pageClass' => ViewPersona::class])
-            ->assertCanSeeTableRecords([$recepcion, $plan])
-            ->assertCanNotSeeTableRecords([$ajena])
-            ->assertTableActionHasUrl('origen', 'http://abianv2.dema.local/planes/7', record: $plan);
+        $this->get(PersonaResource::getUrl('view', ['record' => $persona]))
+            ->assertOk()
+            ->assertSeeInOrder(['Ane Etxeberria', '1 participación', 'AB-2026-00000010', 'Atendida por Itziar', 'En curso', 'Llamada del 20/02/2026 09:30', 'Plan de negocio', 'Mikel', '01/04/2026', 'Txokoa SL'])
+            ->assertSee('http://abianv2.dema.local/recepciones/10')
+            ->assertSee(EmpresaResource::getUrl('view', ['record' => $empresa]))
+            ->assertDontSee($ajena->referencia);
     }
 
     public function test_companies_are_found_by_cif_and_their_ficha_shows_the_people_of_each_participation(): void
@@ -80,18 +92,18 @@ class FichasTest extends TestCase
         $empresa = Empresa::factory()->create(['cif' => 'B95123456']);
         $otra = Empresa::factory()->create(['cif' => 'B11111111']);
         $plan = Participacion::factory()->create(['tipo' => TipoParticipacion::PlanNegocio, 'empresa_id' => $empresa->id]);
-        $plan->personas()->attach(Persona::factory()->create(['nombre' => 'Ane', 'apellido1' => 'Etxeberria', 'apellido2' => null]));
+        $persona = Persona::factory()->create(['nombre' => 'Ane', 'apellido1' => 'Etxeberria', 'apellido2' => null]);
+        $plan->personas()->attach($persona);
 
         Livewire::test(ListEmpresas::class)
             ->searchTable('b-95.123.456')
             ->assertCanSeeTableRecords([$empresa])
             ->assertCanNotSeeTableRecords([$otra]);
 
-        $this->get(EmpresaResource::getUrl('view', ['record' => $empresa]))->assertOk();
-
-        Livewire::test(ParticipacionesEmpresa::class, ['ownerRecord' => $empresa, 'pageClass' => ViewEmpresa::class])
-            ->assertCanSeeTableRecords([$plan])
-            ->assertSee('Ane Etxeberria');
+        $this->get(EmpresaResource::getUrl('view', ['record' => $empresa]))
+            ->assertOk()
+            ->assertSee('Ane Etxeberria')
+            ->assertSee(PersonaResource::getUrl('view', ['record' => $persona]));
     }
 
     public function test_people_can_be_filtered_by_program(): void
