@@ -133,6 +133,32 @@ class SincronizadorAbianTest extends TestCase
         $this->assertSame('2015-06-30', $plan->fecha_fin->toDateString());
     }
 
+    public function test_migrant_status_follows_the_abianv2_rule_by_recepcion_date(): void
+    {
+        config(['intranet.abian_migrante_por_pais_desde' => '2025-09-19']);
+        $this->origen('personas')->insert([
+            $this->personaOrigen(1, 'X1234567L'),
+            ['pais_id' => 33] + $this->personaOrigen(2, '11111111H'),
+            $this->personaOrigen(3, 'X7654321A'),
+        ]);
+        $this->recepcionOrigen(10, [1, 2], fecha: '2025-09-18');
+        $this->recepcionOrigen(11, [2, 3], fecha: '2025-09-19');
+
+        $this->sincronizar();
+
+        $migrante = fn (int $recepcion, string $documento) => DB::table('participacion_persona')
+            ->join('participaciones', 'participaciones.id', '=', 'participacion_persona.participacion_id')
+            ->join('personas', 'personas.id', '=', 'participacion_persona.persona_id')
+            ->where('participaciones.origen_id', $recepcion)
+            ->where('personas.documento', $documento)
+            ->value('migrante');
+
+        $this->assertSame(1, $migrante(10, 'X1234567L'), 'Before the cut-off, a foreign document counts.');
+        $this->assertSame(0, $migrante(10, '11111111H'), 'Before the cut-off, the country of origin does not count.');
+        $this->assertSame(1, $migrante(11, '11111111H'), 'From the cut-off, the country of origin counts.');
+        $this->assertSame(0, $migrante(11, 'X7654321A'), 'From the cut-off, a foreign document alone does not count.');
+    }
+
     public function test_running_again_is_idempotent_and_removes_what_disappeared_in_the_source(): void
     {
         $this->origen('personas')->insert([
@@ -188,19 +214,19 @@ class SincronizadorAbianTest extends TestCase
      */
     private function personaOrigen(int $id, ?string $dni, string $nombre = 'Persona', string $actualizada = '2026-01-01 00:00:00'): array
     {
-        return ['id' => $id, 'dni' => $dni, 'nombre' => $nombre, 'apellido1' => 'Etxeberria', 'sexo' => 2, 'updated_at' => $actualizada];
+        return ['id' => $id, 'dni' => $dni, 'nombre' => $nombre, 'apellido1' => 'Etxeberria', 'sexo' => 2, 'pais_id' => null, 'updated_at' => $actualizada];
     }
 
     /**
      * @param  list<int>  $personaIds
      */
-    private function recepcionOrigen(int $id, array $personaIds, ?int $planId = null): void
+    private function recepcionOrigen(int $id, array $personaIds, ?int $planId = null, string $fecha = '2026-03-01'): void
     {
         $this->origen('recepciones')->insert([
             'id' => $id,
             'ano' => 2026,
             'nombre' => 'Idea '.$id,
-            'fecha_solicitud' => '2026-03-01',
+            'fecha_solicitud' => $fecha,
             'resultado' => 2,
             'plan_id' => $planId,
         ]);
@@ -256,6 +282,7 @@ class SincronizadorAbianTest extends TestCase
             $table->string('telefono')->nullable();
             $table->string('email')->nullable();
             $table->unsignedBigInteger('poblacion_id')->nullable();
+            $table->unsignedBigInteger('pais_id')->nullable();
             $table->timestamp('updated_at')->nullable();
             $table->timestamp('deleted_at')->nullable();
         });

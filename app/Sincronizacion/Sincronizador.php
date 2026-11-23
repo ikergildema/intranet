@@ -47,7 +47,7 @@ abstract class Sincronizador
     /** @var list<array<string, mixed>> */
     private array $filasOrigenEmpresa = [];
 
-    /** @var list<array{fila: array<string, mixed>, personas: list<int>}> */
+    /** @var list<array{fila: array<string, mixed>, personas: list<int>, migrantes: array<int, ?bool>}> */
     private array $participacionesPendientes = [];
 
     /** @var array<string, int> */
@@ -257,8 +257,9 @@ abstract class Sincronizador
      *
      * @param  array{referencia?: ?string, titulo?: ?string, fecha_inicio?: ?string, fecha_fin?: ?string, estado?: ?string, responsable?: ?string, datos?: array<string, mixed>}  $atributos
      * @param  list<int>  $personaIds
+     * @param  array<int, ?bool>  $migrantes  Whether each persona (by id) counted as migrant in it
      */
-    protected function registrarParticipacion(TipoParticipacion $tipo, int $origenId, array $atributos, array $personaIds, ?int $empresaId = null): void
+    protected function registrarParticipacion(TipoParticipacion $tipo, int $origenId, array $atributos, array $personaIds, ?int $empresaId = null, array $migrantes = []): void
     {
         $this->participacionesPendientes[] = [
             'fila' => [
@@ -278,6 +279,7 @@ abstract class Sincronizador
                 'updated_at' => $this->marca,
             ],
             'personas' => array_values(array_unique($personaIds)),
+            'migrantes' => $migrantes,
         ];
         $this->contar('participaciones_'.$tipo->value);
     }
@@ -361,7 +363,7 @@ abstract class Sincronizador
                 $participacionId = $participacionIds[$pendiente['fila']['tipo'].':'.$pendiente['fila']['origen_id']];
 
                 foreach ($pendiente['personas'] as $personaId) {
-                    $vinculos[] = ['participacion_id' => $participacionId, 'persona_id' => $personaId];
+                    $vinculos[] = ['participacion_id' => $participacionId, 'persona_id' => $personaId, 'migrante' => $pendiente['migrantes'][$personaId] ?? null];
                 }
             }
 

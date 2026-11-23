@@ -1,0 +1,135 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Enums\Programa;
+use App\Enums\Rol;
+use App\Enums\Sexo;
+use App\Estadisticas\DistribucionPersonas;
+use App\Filament\Pages\Estadisticas;
+use App\Filament\Widgets\DistribucionPersonasChart;
+use App\Models\Participacion;
+use App\Models\Persona;
+use App\Models\User;
+use Database\Seeders\RolesSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
+use Livewire\Livewire;
+use Tests\TestCase;
+
+class EstadisticasTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->seed(RolesSeeder::class);
+    }
+
+    public function test_each_person_counts_once_in_the_period_whatever_their_participations(): void
+    {
+        $ane = $this->atendida(['sexo' => Sexo::Mujer], ['2026-02-01', '2026-05-01']);
+        $this->atendida(['sexo' => Sexo::Hombre], ['2026-03-01']);
+        $this->atendida(['sexo' => null], ['2026-04-01']);
+        $this->atendida(['sexo' => Sexo::Mujer], ['2025-12-31']);
+
+        $distribucion = $this->distribucion('2026-01-01', '2026-12-31');
+
+        $this->assertSame(3, $distribucion->total());
+        $this->assertSame(['Mujeres' => 1, 'Hombres' => 1, 'No consta' => 1], $distribucion->por(DistribucionPersonas::SEXO));
+        $this->assertSame(2, $ane->participaciones()->count());
+    }
+
+    public function test_age_is_taken_at_the_first_participation_of_the_period(): void
+    {
+        $this->atendida(['fecha_nacimiento' => '1996-03-01'], ['2026-02-01', '2026-06-01']);
+        $this->atendida(['fecha_nacimiento' => '1985-01-01'], ['2026-02-01']);
+        $this->atendida(['fecha_nacimiento' => '1970-01-01'], ['2026-02-01']);
+
+        $this->assertSame(
+            ['Menos de 30' => 1, 'De 30 a 45' => 1, 'Más de 45' => 1],
+            $this->distribucion('2026-01-01', '2026-12-31')->por(DistribucionPersonas::EDAD),
+        );
+    }
+
+    public function test_a_person_is_migrant_when_migrant_in_any_participation_of_the_period(): void
+    {
+        $this->atendida([], ['2026-02-01', '2026-03-01'], migrante: [false, true]);
+        $this->atendida([], ['2026-02-01'], migrante: [false]);
+        $this->atendida([], ['2026-02-01'], migrante: [null]);
+
+        $this->assertSame(
+            ['Autóctonas' => 1, 'Migrantes' => 1, 'No consta' => 1],
+            $this->distribucion('2026-01-01', '2026-12-31')->por(DistribucionPersonas::ORIGEN),
+        );
+    }
+
+    public function test_only_the_main_towns_get_their_own_slice(): void
+    {
+        foreach (['Bilbao' => 5, 'Barakaldo' => 4, 'Getxo' => 3, 'Durango' => 2, 'Gernika' => 1, 'Ermua' => 1] as $poblacion => $personas) {
+            for ($i = 0; $i < $personas; $i++) {
+                $this->atendida(['poblacion' => $poblacion], ['2026-02-01']);
+            }
+        }
+        $this->atendida(['poblacion' => null], ['2026-02-01']);
+
+        $this->assertSame(
+            ['Bilbao' => 5, 'Barakaldo' => 4, 'Getxo' => 3, 'Durango' => 2, 'Otras poblaciones' => 2, 'No consta' => 1],
+            $this->distribucion('2026-01-01', '2026-12-31')->por(DistribucionPersonas::POBLACION),
+        );
+    }
+
+    public function test_the_program_filter_keeps_only_its_participations(): void
+    {
+        $this->atendida([], ['2026-02-01'], programa: Programa::Abian);
+        $this->atendida([], ['2026-02-01'], programa: Programa::Anezka);
+
+        $this->assertSame(1, $this->distribucion('2026-01-01', '2026-12-31', Programa::Anezka)->total());
+    }
+
+    public function test_management_can_open_the_statistics_but_technicians_cannot(): void
+    {
+        $this->atendida(['sexo' => Sexo::Mujer], [now()->toDateString()]);
+
+        $this->actingAs(User::factory()->create()->assignRole(Rol::Direccion->value))
+            ->get(Estadisticas::getUrl())
+            ->assertOk()
+            ->assertSee('Personas atendidas');
+
+        Livewire::test(DistribucionPersonasChart::class, ['dimension' => DistribucionPersonas::SEXO, 'pageFilters' => ['desde' => now()->startOfYear()->toDateString(), 'hasta' => now()->toDateString()]])
+            ->assertOk()
+            ->assertSee('Mujeres: 1 (100,0 %)', escape: false);
+
+        $this->actingAs(User::factory()->create()->assignRole(Rol::Tecnico->value))
+            ->get(Estadisticas::getUrl())
+            ->assertForbidden();
+    }
+
+    /**
+     * A persona with one participation per date.
+     *
+     * @param  array<string, mixed>  $datos
+     * @param  list<string>  $fechas
+     * @param  list<?bool>  $migrante
+     */
+    private function atendida(array $datos, array $fechas, array $migrante = [], Programa $programa = Programa::Abian): Persona
+    {
+        $persona = Persona::factory()->create($datos);
+
+        foreach ($fechas as $indice => $fecha) {
+            $persona->participaciones()->attach(
+                Participacion::factory()->create(['programa' => $programa, 'fecha_inicio' => $fecha]),
+                ['migrante' => $migrante[$indice] ?? null],
+            );
+        }
+
+        return $persona;
+    }
+
+    private function distribucion(string $desde, string $hasta, ?Programa $programa = null): DistribucionPersonas
+    {
+        return new DistribucionPersonas(Carbon::parse($desde), Carbon::parse($hasta), $programa);
+    }
+}

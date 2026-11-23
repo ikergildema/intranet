@@ -18,4 +18,17 @@ return [
         'enpresari' => ['url' => env('ENPRESARI_URL', 'http://enpresari.dema.local')],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Abian migrant rule
+    |--------------------------------------------------------------------------
+    |
+    | Same fixed rule as abianv2 (config/abian.php there): from this date, a
+    | person is migrant when they have a country of origin; before it, when
+    | their document is not a Spanish NIF. Decided by the recepción date.
+    |
+    */
+
+    'abian_migrante_por_pais_desde' => env('ABIAN_MIGRANTE_POR_PAIS_DESDE', '2025-09-19'),
+
 ];

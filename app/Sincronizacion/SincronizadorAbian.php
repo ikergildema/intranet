@@ -27,8 +27,14 @@ class SincronizadorAbian extends Sincronizador
         666 => 'No acude',
     ];
 
+    /** Spanish NIF, the same pattern as abianv2 (App\Models\Persona::PATRON_NIF). */
+    private const PATRON_NIF = '/^[0-9]{8}[TRWAGMYFPDXBNJZSQVHLCKE]$/';
+
     /** @var array<string, array<int, string>> */
     private array $catalogos = [];
+
+    /** @var array<int, array{pais_id: ?int, dni: ?string}> Abian persona id => origin data */
+    private array $origenPersonas = [];
 
     public function programa(): Programa
     {
@@ -91,6 +97,8 @@ class SincronizadorAbian extends Sincronizador
     {
         $this->origen()->table('personas')->whereNull('deleted_at')->orderBy('id')->chunk(1000, function (Collection $personas): void {
             foreach ($personas as $persona) {
+                $this->origenPersonas[$persona->id] = ['pais_id' => $persona->pais_id, 'dni' => $persona->dni];
+
                 $this->registrarPersona('personas', $persona->id, $persona->dni, [
                     'nombre' => $persona->nombre,
                     'apellido1' => $persona->apellido1,
@@ -113,14 +121,14 @@ class SincronizadorAbian extends Sincronizador
      */
     private function leerExpedientes(): void
     {
-        /** @var array<int, list<int>> $personasPorRecepcion */
+        /** @var array<int, array<int, int>> $personasPorRecepcion recepción id => [intranet persona id => Abian persona id] */
         $personasPorRecepcion = [];
 
         foreach ($this->origen()->table('persona_recepcion')->orderBy('orden')->get(['recepcion_id', 'persona_id']) as $vinculo) {
             $personaId = $this->personaDe('personas', $vinculo->persona_id);
 
             if ($personaId !== null) {
-                $personasPorRecepcion[$vinculo->recepcion_id][] = $personaId;
+                $personasPorRecepcion[$vinculo->recepcion_id][$personaId] = $vinculo->persona_id;
             }
         }
 
@@ -169,7 +177,11 @@ class SincronizadorAbian extends Sincronizador
                             ->values()->all(),
                         'plan' => $plan === null ? null : $this->datosPlan($plan, $reunionesPorPlan),
                     ],
-                ], $personasPorRecepcion[$recepcion->id] ?? [], $this->empresaDe('empresas', $plan?->empresa_id));
+                ],
+                    array_keys($personasPorRecepcion[$recepcion->id] ?? []),
+                    $this->empresaDe('empresas', $plan?->empresa_id),
+                    array_map(fn (int $personaAbian) => $this->esMigrante($personaAbian, $recepcion->fecha_solicitud), $personasPorRecepcion[$recepcion->id] ?? []),
+                );
             }
         });
 
@@ -244,6 +256,25 @@ class SincronizadorAbian extends Sincronizador
                 ], [$personaId]);
             }
         });
+    }
+
+    /**
+     * Migrant by the fixed abianv2 rule: from the cut-off date, having a country of origin;
+     * before it, having a document that is not a Spanish NIF.
+     */
+    private function esMigrante(int $personaAbian, ?string $fechaRecepcion): ?bool
+    {
+        $origen = $this->origenPersonas[$personaAbian] ?? null;
+
+        if ($origen === null || $fechaRecepcion === null) {
+            return null;
+        }
+
+        if ($fechaRecepcion >= config('intranet.abian_migrante_por_pais_desde')) {
+            return $origen['pais_id'] !== null;
+        }
+
+        return filled($origen['dni']) && preg_match(self::PATRON_NIF, $origen['dni']) !== 1;
     }
 
     /**
