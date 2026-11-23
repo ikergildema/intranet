@@ -8,6 +8,7 @@ use App\Enums\Sexo;
 use App\Estadisticas\DistribucionPersonas;
 use App\Filament\Pages\Estadisticas;
 use App\Filament\Widgets\DistribucionPersonasChart;
+use App\Filament\Widgets\TablaDistribucionPersonas;
 use App\Filament\Widgets\TotalPersonasAtendidas;
 use App\Models\Participacion;
 use App\Models\Persona;
@@ -80,6 +81,14 @@ class EstadisticasTest extends TestCase
             ['Bilbao' => 5, 'Barakaldo' => 4, 'Getxo' => 3, 'Durango' => 2, 'Otras poblaciones' => 2, 'No consta' => 1],
             $this->distribucion('2026-01-01', '2026-12-31')->por(DistribucionPersonas::POBLACION),
         );
+        $this->assertSame(
+            ['Bilbao' => 5, 'Barakaldo' => 4, 'Getxo' => 3, 'Durango' => 2, 'Ermua' => 1, 'Gernika' => 1, 'No consta' => 1],
+            $this->distribucion('2026-01-01', '2026-12-31')->porCompleto(DistribucionPersonas::POBLACION),
+            'The full table keeps every town.',
+        );
+
+        Livewire::test(TablaDistribucionPersonas::class, ['dimension' => DistribucionPersonas::POBLACION, 'pageFilters' => ['desde' => '2026-01-01', 'hasta' => '2026-12-31']])
+            ->assertSeeInOrder(['Bilbao', '5', '29,4 %', 'Ermua', 'Gernika', 'No consta']);
     }
 
     public function test_the_migrant_block_counts_only_migrant_people_by_area_and_country(): void

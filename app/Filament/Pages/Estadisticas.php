@@ -6,6 +6,7 @@ use App\Enums\Programa;
 use App\Enums\Rol;
 use App\Estadisticas\DistribucionPersonas;
 use App\Filament\Widgets\DistribucionPersonasChart;
+use App\Filament\Widgets\TablaDistribucionPersonas;
 use App\Filament\Widgets\TotalPersonasAtendidas;
 use BackedEnum;
 use Filament\Forms\Components\DatePicker;
@@ -63,11 +64,13 @@ class Estadisticas extends Dashboard
                 fn (string $dimension) => DistribucionPersonasChart::make(['dimension' => $dimension]),
                 [DistribucionPersonas::SEXO, DistribucionPersonas::ORIGEN, DistribucionPersonas::EDAD, DistribucionPersonas::POBLACION],
             ),
+            TablaDistribucionPersonas::make(['dimension' => DistribucionPersonas::POBLACION]),
             TotalPersonasAtendidas::make(['soloMigrantes' => true]),
             ...array_map(
                 fn (string $dimension) => DistribucionPersonasChart::make(['dimension' => $dimension, 'soloMigrantes' => true]),
                 [DistribucionPersonas::AREA_ORIGEN, DistribucionPersonas::PAIS_ORIGEN],
             ),
+            TablaDistribucionPersonas::make(['dimension' => DistribucionPersonas::PAIS_ORIGEN, 'soloMigrantes' => true]),
         ];
     }
 }

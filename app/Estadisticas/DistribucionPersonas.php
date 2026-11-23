@@ -75,11 +75,30 @@ class DistribucionPersonas
     }
 
     /**
-     * People per group, in display order, with "No consta" last.
+     * People per group, in display order, with "No consta" last. Open dimensions keep only
+     * their main groups and fold the rest (see porCompleto() for every group).
      *
      * @return array<string, int>
      */
     public function por(string $dimension): array
+    {
+        return $this->calcular($dimension, agrupar: true);
+    }
+
+    /**
+     * Every group of the dimension, most people first, with "No consta" last.
+     *
+     * @return array<string, int>
+     */
+    public function porCompleto(string $dimension): array
+    {
+        return $this->calcular($dimension, agrupar: false);
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    private function calcular(string $dimension, bool $agrupar): array
     {
         $grupo = match ($dimension) {
             self::SEXO => "CASE personas.sexo WHEN 'mujer' THEN 'Mujeres' WHEN 'hombre' THEN 'Hombres' ELSE 'No consta' END",
@@ -100,6 +119,7 @@ class DistribucionPersonas
             ->selectRaw("{$grupo} as grupo, count(*) as total")
             ->groupBy('grupo')
             ->orderByDesc('total')
+            ->orderBy('grupo')
             ->pluck('total', 'grupo')
             ->map(fn ($total) => (int) $total)
             ->all();
@@ -107,9 +127,11 @@ class DistribucionPersonas
         $noConsta = $totales[self::NO_CONSTA] ?? 0;
         unset($totales[self::NO_CONSTA]);
 
-        $ordenados = isset(self::RESTO[$dimension])
-            ? $this->agruparPrincipales($totales, self::RESTO[$dimension])
-            : array_filter(array_replace(array_fill_keys(self::GRUPOS[$dimension], 0), $totales));
+        $ordenados = match (true) {
+            ! isset(self::RESTO[$dimension]) => array_filter(array_replace(array_fill_keys(self::GRUPOS[$dimension], 0), $totales)),
+            $agrupar => $this->agruparPrincipales($totales, self::RESTO[$dimension]),
+            default => $totales,
+        };
 
         return $noConsta > 0 ? $ordenados + [self::NO_CONSTA => $noConsta] : $ordenados;
     }
