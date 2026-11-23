@@ -24,7 +24,7 @@ trait UsaFiltrosEstadisticas
         $filtros = $this->pageFilters ?? [];
 
         return new DistribucionPersonas(
-            Carbon::parse($filtros['desde'] ?? now()->startOfYear()),
+            Carbon::parse($filtros['desde'] ?? now()->startOfQuarter()),
             Carbon::parse($filtros['hasta'] ?? now()),
             Programa::tryFrom((string) ($filtros['programa'] ?? '')),
             $this->soloMigrantes,

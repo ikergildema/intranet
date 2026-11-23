@@ -49,8 +49,8 @@ class Estadisticas extends Dashboard
     {
         return $schema->components([
             Section::make()->columns(3)->columnSpanFull()->schema([
-                DatePicker::make('desde')->label(__('Desde'))->default(now()->startOfYear())->required()->native(false)->displayFormat('d/m/Y'),
-                DatePicker::make('hasta')->label(__('Hasta'))->default(now())->required()->native(false)->displayFormat('d/m/Y'),
+                DatePicker::make('desde')->label(__('Desde'))->default(now()->startOfQuarter()->toDateString())->required()->native(false)->displayFormat('d/m/Y'),
+                DatePicker::make('hasta')->label(__('Hasta'))->default(now()->toDateString())->required()->native(false)->displayFormat('d/m/Y'),
                 Select::make('programa')->label(__('Programa'))->options(Programa::class)->placeholder(__('Todos los programas')),
             ]),
         ]);

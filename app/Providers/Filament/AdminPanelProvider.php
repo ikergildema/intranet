@@ -21,6 +21,7 @@ use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\HtmlString;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 class AdminPanelProvider extends PanelProvider
@@ -33,6 +34,11 @@ class AdminPanelProvider extends PanelProvider
             ->path('')
             ->login()
             ->brandName('Intranet DEMA')
+            ->brandLogo(asset('img/dema-logo.png'))
+            ->brandLogoHeight('3.25rem')
+            ->favicon(asset('img/dema-favicon.png'))
+            // In dark mode the logo sits on a white plate: its dark gray "Bizkaia" would not read on black.
+            ->renderHook(PanelsRenderHook::HEAD_END, fn () => new HtmlString('<style>.dark .fi-logo { background: #fff; border-radius: .5rem; padding: .25rem .5rem; }</style>'))
             ->colors([
                 'primary' => Color::Blue,
                 'gray' => Color::Slate,

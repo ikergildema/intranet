@@ -114,6 +114,17 @@ class EstadisticasTest extends TestCase
         $this->assertSame(1, $this->distribucion('2026-01-01', '2026-12-31', Programa::Anezka)->total());
     }
 
+    public function test_by_default_the_period_runs_from_the_start_of_the_current_quarter_to_today(): void
+    {
+        $this->travelTo('2026-11-23 10:00:00');
+        $this->actingAs(User::factory()->create()->assignRole(Rol::Direccion->value));
+
+        $pagina = Livewire::test(Estadisticas::class);
+        $this->assertStringStartsWith('2026-10-01', $pagina->get('filters.desde'));
+        $this->assertStringStartsWith('2026-11-23', $pagina->get('filters.hasta'));
+
+    }
+
     public function test_management_can_open_the_statistics_but_technicians_cannot(): void
     {
         $this->atendida(['sexo' => Sexo::Mujer], [now()->toDateString()]);
